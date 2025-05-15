@@ -1,4 +1,4 @@
-# 📇 RPL Library Card Printer (Local)
+# 📇 RPL Library Card Printer (Local and Network Versions)
 
 A Windows-only desktop application for printing Regina Public Library barcode cards in single-card or triple keychain format. Built with [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter), the app features a modern UI, barcode preview, printer selection, and direct-to-printer support for high-DPI card output.
 

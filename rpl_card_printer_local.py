@@ -6,6 +6,7 @@ from PIL import Image, ImageTk, ImageDraw, ImageFont, ImageWin
 import win32print
 import win32ui
 from io import BytesIO
+import win32con
 
 #test comment 
 class BarcodePrinterApp:
@@ -193,6 +194,11 @@ class BarcodePrinterApp:
         printer_name = self.printer_map.get(display_name, display_name)
 
         try:
+            hprinter = win32print.OpenPrinter(printer_name)
+            printer_info = win32print.GetPrinter(hprinter, 2)
+            devmode = printer_info["pDevMode"]
+            devmode.Orientation = win32con.DMORIENT_PORTRAIT
+            win32print.ClosePrinter(hprinter)
             hdc = win32ui.CreateDC()
             hdc.CreatePrinterDC(printer_name)
         except win32ui.error as e:
@@ -233,6 +239,13 @@ class BarcodePrinterApp:
         printer_name = self.printer_map.get(display_name, display_name)
 
         try:
+            #force portrait
+            hprinter = win32print.OpenPrinter(printer_name)
+            printer_info = win32print.GetPrinter(hprinter, 2)
+            devmode = printer_info["pDevMode"]
+            devmode.Orientation = win32con.DMORIENT_PORTRAIT
+            win32print.ClosePrinter(hprinter)
+            
             hdc = win32ui.CreateDC()
             hdc.CreatePrinterDC(printer_name)
         except win32ui.error as e:

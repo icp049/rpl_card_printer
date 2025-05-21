@@ -145,6 +145,8 @@ class BarcodePrinterApp:
                 self.print_barcode_single()
             elif self.print_mode.get() == "triple":
                 self.print_barcode_triple()
+        except Exception as e:
+            self.root.after(0, lambda: messagebox.showerror("Print Error", str(e)))
         finally:
             self.root.after(0, self.progress_bar.stop)
             self.root.after(0, self.progress_bar.grid_remove)
@@ -165,9 +167,8 @@ class BarcodePrinterApp:
 
             hdc = win32ui.CreateDC()
             hdc.CreatePrinterDC(printer_name)
-        except win32ui.error:
-            messagebox.showinfo("Print Error", f"Could not connect to printer: {printer_name}")
-            return
+        except Exception as e:
+            raise RuntimeError(f"Could not connect to printer: {printer_name}\n\n{e}")
 
         dpi = 300
         card_width_px = int(2.125 * dpi)
@@ -191,7 +192,7 @@ class BarcodePrinterApp:
         hdc.EndDoc()
         hdc.DeleteDC()
 
-        messagebox.showinfo("Print Success", f"Printed to {printer_name} (Single Mode).")
+        self.root.after(0, lambda: messagebox.showinfo("Print Success", f"Printed to {printer_name} (Single Mode)."))
 
     def print_barcode_triple(self):
         if not hasattr(self, 'image'):
@@ -209,9 +210,8 @@ class BarcodePrinterApp:
 
             hdc = win32ui.CreateDC()
             hdc.CreatePrinterDC(printer_name)
-        except win32ui.error:
-            messagebox.showinfo("Print Error", f"Could not connect to printer: {printer_name}")
-            return
+        except Exception as e:
+            raise RuntimeError(f"Could not connect to printer: {printer_name}\n\n{e}")
 
         dpi = 300
         card_width_px = int(2.125 * dpi)
@@ -248,7 +248,7 @@ class BarcodePrinterApp:
         hdc.EndDoc()
         hdc.DeleteDC()
 
-        messagebox.showinfo("Print Success", f"Printed to {printer_name} (Triple Mode).")
+        self.root.after(0, lambda: messagebox.showinfo("Print Success", f"Printed to {printer_name} (Single Mode)."))
 
     def create_printer_selector(self, parent):
         printer_frame = ctk.CTkFrame(parent)

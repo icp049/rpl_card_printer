@@ -344,5 +344,6 @@ class BarcodePrinterApp:
 
 if __name__ == "__main__":
     root = ctk.CTk()
+    root.iconbitmap("printer.ico") 
     app = BarcodePrinterApp(root)
     root.mainloop()

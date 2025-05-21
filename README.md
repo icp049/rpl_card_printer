@@ -29,3 +29,20 @@ Install via `pip`:
 
 ```bash
 pip install customtkinter pillow python-barcode pywin32
+
+if you wish to do an executable file. run this command in the root folder
+
+FOR LOCAL VERSION
+pyinstaller --onefile --windowed --icon=printer.ico `
+  --add-data "printer.ico;." `
+  --add-data "snip1.PNG;." `
+  --add-data "snip2.PNG;." `
+  rpl_card_printer_local.py 
+
+
+FOR NETWORK VERSION
+pyinstaller --onefile --windowed --icon=printer.ico `
+  --add-data "printer.ico;." `
+  --add-data "snip1.PNG;." `
+  --add-data "snip2.PNG;." `
+  rpl_card_printer_network.py 

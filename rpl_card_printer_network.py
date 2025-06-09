@@ -8,14 +8,24 @@ import win32ui
 from io import BytesIO
 import win32con
 import threading
+from PIL import Image, ImageTk
+import os, sys
+
+            
+def resource_path(relative_path):
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.abspath("."), relative_path) 
 
 
 class BarcodePrinterApp:
     def __init__(self, root):
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
-
         self.root = root
+        
+        
+            
         self.root.title("RPL Library Card Printer (Network)")
         self.root.geometry("700x760")
         self.root.resizable(False, False)
@@ -289,12 +299,12 @@ class BarcodePrinterApp:
         button_height = 200
 
         try:
-            single_img = Image.open(self.resource_path("snip1.PNG")).resize((button_width, button_height))
+            single_img = Image.open(resource_path("snip1.PNG")).resize((button_width, button_height))
         except:
             single_img = Image.new("RGB", (button_width, button_height), "gray")
 
         try:
-            triple_img = Image.open(self.resource_path("snip2.PNG")).resize((button_width, button_height))
+            triple_img = Image.open(resource_path("snip2.PNG")).resize((button_width, button_height))
         except:
             triple_img = Image.new("RGB", (button_width, button_height), "gray")
 
@@ -334,15 +344,11 @@ class BarcodePrinterApp:
         self.print_mode.set(mode_map.get(mode, "single"))
         for m, btn in self.mode_buttons.items():
             btn.configure(border_color="skyblue" if m == mode else "gray", border_width=3 if m == mode else 1)
-
-    def resource_path(self, relative_path):
-        import os, sys
-        if hasattr(sys, '_MEIPASS'):
-            return os.path.join(sys._MEIPASS, relative_path)
-        return os.path.join(os.path.abspath("."), relative_path)
-
+            
 
 if __name__ == "__main__":
     root = ctk.CTk()
+    icon_path = resource_path("printer.ico")
+    root.iconbitmap(icon_path)  
     app = BarcodePrinterApp(root)
     root.mainloop()

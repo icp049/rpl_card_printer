@@ -8,13 +8,19 @@ import win32ui
 from io import BytesIO
 import win32con
 
+def resource_path(relative_path):
+        """ Get absolute path to resource for dev and for PyInstaller """
+        import sys, os
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.abspath("."), relative_path)
 #test comment 
 class BarcodePrinterApp:
-    def __init__(self):
+    def __init__(self,root):
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
-
         self.root = root
+       
         self.root.title("RPL Library Card Printer (Local)")
         self.root.geometry("700x760")
         self.root.resizable(False, False)  # Fixed size, no maximize
@@ -296,12 +302,7 @@ class BarcodePrinterApp:
 
         self.root.after(0, lambda: messagebox.showinfo("Print Success", f"Printed to {printer_name} (Single Mode)."))
 
-    def resource_path(self, relative_path):
-        """ Get absolute path to resource for dev and for PyInstaller """
-        import sys, os
-        if hasattr(sys, '_MEIPASS'):
-            return os.path.join(sys._MEIPASS, relative_path)
-        return os.path.join(os.path.abspath("."), relative_path)
+    
 
     def create_print_mode_selector(self, parent):
         self.mode_frame = ctk.CTkFrame(parent)
@@ -312,12 +313,12 @@ class BarcodePrinterApp:
         button_height = 200
 
         try:
-            single_img = Image.open(self.resource_path("snip1.PNG")).resize((button_width, button_height))
+            single_img = Image.open(resource_path("snip1.PNG")).resize((button_width, button_height))
         except:
             single_img = Image.new("RGB", (button_width, button_height), "gray")
 
         try:
-            triple_img = Image.open(self.resource_path("snip2.PNG")).resize((button_width, button_height))
+            triple_img = Image.open(resource_path("snip2.PNG")).resize((button_width, button_height))
         except:
             triple_img = Image.new("RGB", (button_width, button_height), "gray")
 
@@ -363,5 +364,7 @@ class BarcodePrinterApp:
 
 if __name__ == "__main__":
     root = ctk.CTk()
-    app = BarcodePrinterApp()
+    icon_path = resource_path("printer.ico")
+    root.iconbitmap(icon_path)  
+    app = BarcodePrinterApp(root)
     root.mainloop()

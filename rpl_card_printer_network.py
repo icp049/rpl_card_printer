@@ -1,3 +1,12 @@
+import ctypes
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)  
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+    
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from barcode import get_barcode_class
@@ -8,24 +17,14 @@ import win32ui
 from io import BytesIO
 import win32con
 import threading
-from PIL import Image, ImageTk
-import os, sys
-
-            
-def resource_path(relative_path):
-        if hasattr(sys, '_MEIPASS'):
-            return os.path.join(sys._MEIPASS, relative_path)
-        return os.path.join(os.path.abspath("."), relative_path) 
 
 
 class BarcodePrinterApp:
     def __init__(self, root):
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
+
         self.root = root
-        
-        
-            
         self.root.title("RPL Library Card Printer (Network)")
         self.root.geometry("700x760")
         self.root.resizable(False, False)
@@ -54,10 +53,29 @@ class BarcodePrinterApp:
         input_frame.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(input_frame, text="Library Account Number:").grid(row=0, column=0, padx=10, pady=10, sticky="e")
-        self.entry = ctk.CTkEntry(input_frame, textvariable=self.input_var)
-        self.entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        
+        entry_row = ctk.CTkFrame(input_frame, fg_color="transparent")
+        entry_row.grid(row=0, column=1, sticky="ew", padx=(10, 10))
+        entry_row.grid_columnconfigure(0, weight=1)
+        
+        
+        self.entry = ctk.CTkEntry(entry_row, textvariable=self.input_var,height=40)
+        self.entry.grid(row=0, column=0, sticky="ew")
+        
+        reset_button = ctk.CTkButton(
+            entry_row,
+            text="↺",
+            width=30,
+            height=20,
+            command=self.clear_input,
+            fg_color="transparent",
+            hover_color="#eeeeee",
+            text_color="gray",
+            font=("Arial", 30)
+        )
+        reset_button.grid(row=0, column=1, padx=(5, 0))
 
-        ctk.CTkButton(input_frame, text="Generate Barcode", command=self.generate_barcode).grid(
+        ctk.CTkButton(input_frame, text="Generate Barcode", command=self.generate_barcode,  width=200 ).grid(
             row=1, column=0, columnspan=2, pady=10
         )
 
@@ -122,17 +140,25 @@ class BarcodePrinterApp:
             messagebox.showerror("Barcode Error", str(e))
 
     def update_preview_image(self):
-        if not hasattr(self, 'image'):
+        # Skip if image isn't set or is explicitly None
+        if not hasattr(self, 'image') or self.image is None:
             return
+
         canvas_width = self.canvas.winfo_width()
         if canvas_width <= 1:
+            # Wait for a valid canvas size before updating
+            self.root.after(100, self.update_preview_image)
             return
-        ratio = canvas_width / self.image.width
-        preview_height = int(self.image.height * ratio)
-        self.tk_image = ImageTk.PhotoImage(self.image.resize((canvas_width, preview_height)))
-        self.canvas.config(height=preview_height)
-        self.canvas.delete("all")
-        self.canvas.create_image(canvas_width // 2, preview_height // 2, image=self.tk_image)
+
+        try:
+            ratio = canvas_width / self.image.width
+            preview_height = int(self.image.height * ratio)
+            self.tk_image = ImageTk.PhotoImage(self.image.resize((canvas_width, preview_height)))
+            self.canvas.config(height=preview_height)
+            self.canvas.delete("all")
+            self.canvas.create_image(canvas_width // 2, preview_height // 2, image=self.tk_image)
+        except Exception as e:
+            print(f"[Preview Error] {e}")
 
     def resize_canvas(self, event=None):
         if self.canvas.winfo_width() <= 1:
@@ -160,11 +186,13 @@ class BarcodePrinterApp:
         finally:
             self.root.after(0, self.progress_bar.stop)
             self.root.after(0, self.progress_bar.grid_remove)
+            
+    
 
     def print_barcode_single(self):
         if not hasattr(self, 'image'):
-            messagebox.showerror("Print Error", "Generate the barcode first.")
-            return
+            if not messagebox.askretrycancel("Print Error", f"{e}\n\nWould you like to try again?"):
+               return
 
         printer_name = self.printer_map.get(self.printer_var.get(), self.printer_var.get())
 
@@ -202,12 +230,19 @@ class BarcodePrinterApp:
         hdc.EndDoc()
         hdc.DeleteDC()
 
-        self.root.after(0, lambda: messagebox.showinfo("Print Success", f"Printed to {printer_name} (Single Mode)."))
+        
+        def on_success():
+            messagebox.showinfo("Print Success", f"Printed to {printer_name} ({self.print_mode.get().capitalize()} Mode).")
+            self.input_var.set("")
+            self.canvas.delete("all")
+            self.image = None
+
+        self.root.after(0, on_success)
 
     def print_barcode_triple(self):
         if not hasattr(self, 'image'):
-            messagebox.showerror("Print Error", "Generate the barcode first.")
-            return
+           if not messagebox.askretrycancel("Print Error", f"{e}\n\nWould you like to try again?"):
+             return
 
         printer_name = self.printer_map.get(self.printer_var.get(), self.printer_var.get())
 
@@ -258,7 +293,13 @@ class BarcodePrinterApp:
         hdc.EndDoc()
         hdc.DeleteDC()
 
-        self.root.after(0, lambda: messagebox.showinfo("Print Success", f"Printed to {printer_name} (Single Mode)."))
+        def on_success():
+            messagebox.showinfo("Print Success", f"Printed to {printer_name} ({self.print_mode.get().capitalize()} Mode).")
+            self.input_var.set("")
+            self.canvas.delete("all")
+            self.image = None
+
+        self.root.after(0, on_success)
 
     def create_printer_selector(self, parent):
         printer_frame = ctk.CTkFrame(parent)
@@ -292,19 +333,19 @@ class BarcodePrinterApp:
 
     def create_print_mode_selector(self, parent):
         self.mode_frame = ctk.CTkFrame(parent)
-        self.mode_frame.grid(row=2, column=0, pady=10, sticky="ew")
+        self.mode_frame.grid(row=2, column=0, pady=20, sticky="ew")
         self.mode_frame.grid_columnconfigure((0, 1), weight=1)
 
         button_width = 130
         button_height = 200
 
         try:
-            single_img = Image.open(resource_path("snip1.PNG")).resize((button_width, button_height))
+            single_img = Image.open(self.resource_path("snip1.PNG")).resize((button_width, button_height))
         except:
             single_img = Image.new("RGB", (button_width, button_height), "gray")
 
         try:
-            triple_img = Image.open(resource_path("snip2.PNG")).resize((button_width, button_height))
+            triple_img = Image.open(self.resource_path("snip2.PNG")).resize((button_width, button_height))
         except:
             triple_img = Image.new("RGB", (button_width, button_height), "gray")
 
@@ -344,11 +385,25 @@ class BarcodePrinterApp:
         self.print_mode.set(mode_map.get(mode, "single"))
         for m, btn in self.mode_buttons.items():
             btn.configure(border_color="skyblue" if m == mode else "gray", border_width=3 if m == mode else 1)
-            
+
+    def resource_path(self, relative_path):
+        import os, sys
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, relative_path)
+        return os.path.join(os.path.abspath("."), relative_path)
+    
+    def clear_input(self):
+        self.input_var.set("")
+        self.canvas.delete("all")  # also clears the preview image
+        if hasattr(self, 'image'):
+          del self.image  # remove the image object from memory
+        self.entry.focus_set()
+
+    
+
+
 
 if __name__ == "__main__":
     root = ctk.CTk()
-    icon_path = resource_path("printer.ico")
-    root.iconbitmap(icon_path)  
     app = BarcodePrinterApp(root)
     root.mainloop()

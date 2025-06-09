@@ -1,3 +1,13 @@
+import ctypes
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)  
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
+
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from barcode import get_barcode_class
@@ -7,6 +17,7 @@ import win32print
 import win32ui
 from io import BytesIO
 import win32con
+import threading
 
 def resource_path(relative_path):
         """ Get absolute path to resource for dev and for PyInstaller """
@@ -21,7 +32,7 @@ class BarcodePrinterApp:
         ctk.set_default_color_theme("blue")
         self.root = root
        
-        self.root.title("RPL Library Card Printer (Local)")
+        self.root.title("RPL Library Card Printer")
         self.root.geometry("700x760")
         self.root.resizable(False, False)  # Fixed size, no maximize
 
@@ -45,17 +56,41 @@ class BarcodePrinterApp:
         main_frame.grid_rowconfigure(3, weight=0)  # Printer
         main_frame.grid_rowconfigure(4, weight=0)  # Button
         main_frame.grid_rowconfigure(5, weight=0)  # Progress
+        
+        
+        #input section
 
-        # Input section
         input_frame = ctk.CTkFrame(main_frame)
         input_frame.grid(row=0, column=0, sticky="ew", pady=10)
         input_frame.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(input_frame, text="Library Account Number:").grid(row=0, column=0, padx=10, pady=10, sticky="e")
-        self.entry = ctk.CTkEntry(input_frame, textvariable=self.input_var)
-        self.entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        
+        entry_row = ctk.CTkFrame(input_frame, fg_color="transparent")
+        entry_row.grid(row=0, column=1, sticky="ew", padx=(10, 10))
+        entry_row.grid_columnconfigure(0, weight=1)
+        
+        
+        self.entry = ctk.CTkEntry(entry_row, textvariable=self.input_var,height=40)
+        self.entry.grid(row=0, column=0, sticky="ew")
+        
+        reset_icon = ctk.CTkImage(light_image=Image.open(resource_path("refresh.png")), size=(30, 30))
+        
+        reset_button = ctk.CTkButton(
+            entry_row,
+            image=reset_icon,
+            text="",
+            width=30,
+            height=30,
+            command=self.clear_input,
+            fg_color="transparent",
+            hover_color="#eeeeee",
+            text_color="gray",
+            font=("Arial", 30)
+        )
+        reset_button.grid(row=0, column=1, padx=(5, 0))
 
-        ctk.CTkButton(input_frame, text="Generate Barcode", command=self.generate_barcode).grid(
+        ctk.CTkButton(input_frame, text="Generate Barcode", command=self.generate_barcode,  width=200 ).grid(
             row=1, column=0, columnspan=2, pady=10
         )
 
@@ -83,7 +118,10 @@ class BarcodePrinterApp:
             self.printer_map = {
                 p["pPrinterName"]: p["pPrinterName"]
                 for p in printers
-                if p["Attributes"] & win32print.PRINTER_ATTRIBUTE_LOCAL
+                if (
+            p["Attributes"] & win32print.PRINTER_ATTRIBUTE_LOCAL and
+            "card" in p["pPrinterName"].lower()
+        )
             }
             printer_display_names = list(self.printer_map.keys())
         except Exception as e:
@@ -181,7 +219,11 @@ class BarcodePrinterApp:
 
         self.progress_bar.grid()
         self.progress_bar.start()
-        self.root.after(100, self._print_dispatch)
+        self.print_failed = False
+        self.print_thread = threading.Thread(target=self._print_dispatch, daemon=True)
+        self.print_thread.start()
+
+        self.root.after(15000, self.check_print_timeout)
 
     def _print_dispatch(self):
         try:
@@ -198,11 +240,10 @@ class BarcodePrinterApp:
 
     def print_barcode_single(self):
         if not hasattr(self, 'image'):
-            messagebox.showerror("Print Error", "Generate the barcode first.")
+            self.root.after(0, lambda: messagebox.showerror("Print Error", "Generate the barcode first."))
             return
 
-        display_name = self.printer_var.get()
-        printer_name = self.printer_map.get(display_name, display_name)
+        printer_name = self.printer_map.get(self.printer_var.get(), self.printer_var.get())
 
         try:
             hprinter = win32print.OpenPrinter(printer_name)
@@ -210,97 +251,106 @@ class BarcodePrinterApp:
             devmode = printer_info["pDevMode"]
             devmode.Orientation = win32con.DMORIENT_PORTRAIT
             win32print.ClosePrinter(hprinter)
+
             hdc = win32ui.CreateDC()
             hdc.CreatePrinterDC(printer_name)
         except Exception as e:
-            raise RuntimeError(f"Could not connect to printer: {printer_name}\n\n{e}")
+            self.root.after(0, lambda: self.prompt_retry(f"Could not connect to printer:\n{e}", self.print_barcode))
+            return
 
-        dpi = 300
-        card_width_px = int(2.125 * dpi)
-        card_height_px = int(3.375 * dpi)
+        try:
+            dpi = 300
+            card_width_px = int(2.125 * dpi)
+            target_width = 600
+            target_height = 180
+            image_resized = self.image.resize((target_width, target_height))
 
-        target_width = 600
-        target_height = 180
-        image_resized = self.image.resize((target_width, target_height))
+            left = (card_width_px - target_width) // 2
+            top = 20
+            right = left + target_width
+            bottom = top + target_height
 
-        left = (card_width_px - target_width) // 2
-        top = 20
-        right = left + target_width
-        bottom = top + target_height
+            hdc.StartDoc("Codabar Print - Single")
+            hdc.StartPage()
 
-        hdc.StartDoc("Codabar Print - Single")
-        hdc.StartPage()
+            dib = ImageWin.Dib(image_resized)
+            dib.draw(hdc.GetHandleOutput(), (left, top, right, bottom))
 
-        dib = ImageWin.Dib(image_resized)
-        dib.draw(hdc.GetHandleOutput(), (left, top, right, bottom))
+            hdc.EndPage()
+            hdc.EndDoc()
+            hdc.DeleteDC()
 
-        hdc.EndPage()
-        hdc.EndDoc()
-        hdc.DeleteDC()
+            self.root.after(0, lambda: self.handle_print_success(f"Printed to {printer_name} (Single Card)."))
 
-        self.root.after(0, lambda: messagebox.showinfo("Print Success", f"Printed to {printer_name} (Single Mode)."))
+
+        except Exception as e:
+            self.root.after(0, lambda: self.prompt_retry(f"Printing failed:\n{e}", self.print_barcode))
+
+        
+       
 
     def print_barcode_triple(self):
         if not hasattr(self, 'image'):
-            messagebox.showerror("Print Error", "Generate the barcode first.")
+            self.root.after(0, lambda: messagebox.showerror("Print Error", "Generate the barcode first."))
             return
 
-        display_name = self.printer_var.get()
-        printer_name = self.printer_map.get(display_name, display_name)
+        printer_name = self.printer_map.get(self.printer_var.get(), self.printer_var.get())
 
         try:
-            #force portrait
             hprinter = win32print.OpenPrinter(printer_name)
             printer_info = win32print.GetPrinter(hprinter, 2)
             devmode = printer_info["pDevMode"]
             devmode.Orientation = win32con.DMORIENT_PORTRAIT
             win32print.ClosePrinter(hprinter)
-            
+
             hdc = win32ui.CreateDC()
             hdc.CreatePrinterDC(printer_name)
         except Exception as e:
-            raise RuntimeError(f"Could not connect to printer: {printer_name}\n\n{e}")
+            self.root.after(0, lambda: self.prompt_retry(f"Could not connect to printer:\n{e}", self.print_barcode))
+            return
+
+        try:
+            dpi = 300
+            card_width_px = int(2.125 * dpi)
+            card_height_px = int(3.375 * dpi)
+            zone_height = card_height_px // 3
+
+            barcode_width = 650
+            barcode_height = 180
+            header_spacing = 15
+
+            left = (card_width_px - barcode_width) // 2
+            right = left + barcode_width
+
+            image_resized = self.image.resize((barcode_width, barcode_height))
+            dib = ImageWin.Dib(image_resized)
+
+            hdc.StartDoc("Codabar Print - Triple")
+            hdc.StartPage()
+
+            font = win32ui.CreateFont({"name": "Arial", "height": 44, "weight": 700})
+            hdc.SelectObject(font)
+
+            header_text = "reginalibrary.ca | sasklibraries.ca"
+            text_width, text_height = hdc.GetTextExtent(header_text)
+
+            for i in range(3):
+                zone_top = i * zone_height
+                top = zone_top + (zone_height - barcode_height - text_height - header_spacing) // 2 + text_height + header_spacing
+                bottom = top + barcode_height
+
+                hdc.TextOut((card_width_px - text_width) // 2, top - header_spacing - text_height, header_text)
+                dib.draw(hdc.GetHandleOutput(), (left, top, right, bottom))
+
+            hdc.EndPage()
+            hdc.EndDoc()
+            hdc.DeleteDC()
+
+            self.root.after(0, lambda: self.handle_print_success(f"Printed to {printer_name} (Triple Keychain)."))
 
 
-           
-
-        dpi = 300
-        card_width_px = int(2.125 * dpi)
-        card_height_px = int(3.375 * dpi)
-        zone_height = card_height_px // 3
-
-        barcode_width = 650
-        barcode_height = 180
-        header_spacing = 15
-
-        left = (card_width_px - barcode_width) // 2
-        right = left + barcode_width
-
-        image_resized = self.image.resize((barcode_width, barcode_height))
-        dib = ImageWin.Dib(image_resized)
-
-        hdc.StartDoc("Codabar Print - Triple")
-        hdc.StartPage()
-
-        font = win32ui.CreateFont({"name": "Arial", "height": 44, "weight": 700})
-        hdc.SelectObject(font)
-
-        header_text = "reginalibrary.ca | sasklibraries.ca"
-        text_width, text_height = hdc.GetTextExtent(header_text)
-
-        for i in range(3):
-            zone_top = i * zone_height
-            top = zone_top + (zone_height - barcode_height - text_height - header_spacing) // 2 + text_height + header_spacing
-            bottom = top + barcode_height
-
-            hdc.TextOut((card_width_px - text_width) // 2, top - header_spacing - text_height, header_text)
-            dib.draw(hdc.GetHandleOutput(), (left, top, right, bottom))
-
-        hdc.EndPage()
-        hdc.EndDoc()
-        hdc.DeleteDC()
-
-        self.root.after(0, lambda: messagebox.showinfo("Print Success", f"Printed to {printer_name} (Single Mode)."))
+        except Exception as e:
+            self.root.after(0, lambda: self.prompt_retry(f"Printing failed:\n{e}", self.print_barcode))
 
     
 
@@ -361,6 +411,35 @@ class BarcodePrinterApp:
                 btn.configure(border_color="skyblue", border_width=3)
             else:
                 btn.configure(border_color="gray", border_width=1)
+                
+    def clear_input(self):
+        self.input_var.set("")
+        self.canvas.delete("all")
+        
+    def prompt_retry(self, message, retry_function):
+        def ask_and_handle():
+            self.progress_bar.stop()
+            self.progress_bar.grid_remove()
+            retry = messagebox.askretrycancel("Print Error", message)
+            if retry:
+                self.print_barcode()
+        self.root.after(0, ask_and_handle)
+        
+    def handle_print_success(self, message):
+        if getattr(self, "print_failed", False):
+            return  # Don't show success if timeout already occurred
+        self.progress_bar.stop()
+        self.progress_bar.grid_remove()
+        messagebox.showinfo("Print Success", message)
+        
+    def check_print_timeout(self):
+        if self.print_thread.is_alive():
+            self.print_failed = True
+            self.progress_bar.stop()
+            self.progress_bar.grid_remove()
+            messagebox.showerror("Print Timeout", "Printer is not responding. Please check the printer and try again.")
+
+
 
 if __name__ == "__main__":
     root = ctk.CTk()

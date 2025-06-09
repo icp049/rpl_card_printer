@@ -37,7 +37,8 @@ pyinstaller --onefile --windowed --icon=printer.ico `
   --add-data "printer.ico;." `
   --add-data "snip1.PNG;." `
   --add-data "snip2.PNG;." `
-  rpl_card_printer_local.py 
+  --add-data "refresh.png;." `
+  rpl_card_printer_local.py
 
 
 FOR NETWORK VERSION

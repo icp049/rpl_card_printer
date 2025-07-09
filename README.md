@@ -47,3 +47,8 @@ pyinstaller --onefile --windowed --icon=printer.ico `
   --add-data "snip1.PNG;." `
   --add-data "snip2.PNG;." `
   rpl_card_printer_network.py 
+
+📸 Icon Attribution
+This application uses icons from Flaticon:
+
+<a href="https://www.flaticon.com/free-icons/printer" title="printer icons">Printer icons created by Creative Avenue - Flaticon</a>

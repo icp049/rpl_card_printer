@@ -449,3 +449,8 @@ if __name__ == "__main__":
     root.iconbitmap(icon_path)  
     app = BarcodePrinterApp(root)
     root.mainloop()
+
+#Printer Icon Attribution:
+#https://www.flaticon.com/free-icons/printer
+
+

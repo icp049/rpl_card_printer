@@ -262,10 +262,12 @@ class BarcodePrinterApp:
         card_width_px = int(2.125 * dpi)
         card_height_px = int(3.375 * dpi)
         zone_height = card_height_px // 3
-
-        barcode_width = 650
-        barcode_height = 180
-        header_spacing = 15
+         
+         
+        #change size and top placing 
+        barcode_width = 610
+        barcode_height = 150
+        header_spacing = 12
 
         left = (card_width_px - barcode_width) // 2  # <-- This line was missing
         image_resized = self.image.resize((barcode_width, barcode_height))
@@ -274,7 +276,7 @@ class BarcodePrinterApp:
         hdc.StartDoc("Codabar Print - Triple")
         hdc.StartPage()
 
-        font = win32ui.CreateFont({"name": "Arial", "height": 44, "weight": 700})
+        font = win32ui.CreateFont({"name": "Arial", "height": 35, "weight": 700}) #change font seize here
         hdc.SelectObject(font)
 
         header_text = "reginalibrary.ca | sasklibraries.ca"
@@ -282,7 +284,8 @@ class BarcodePrinterApp:
 
         for i in range(3):
            zone_top = i * zone_height
-           top = zone_top + (zone_height - barcode_height - text_height - header_spacing) // 2 + text_height + header_spacing
+           top = zone_top + (zone_height - barcode_height - text_height - header_spacing) // 2 + text_height + header_spacing - 50 #adjusted top postion
+
            bottom = top + barcode_height
 
            hdc.TextOut((card_width_px - text_width) // 2, top - header_spacing - text_height, header_text)
@@ -317,7 +320,7 @@ class BarcodePrinterApp:
                 p["pPrinterName"].split("\\")[-1]: p["pPrinterName"]
                 for p in printers if "card printer" in p["pPrinterName"].lower()
             }
-            printer_display_names = list(self.printer_map.keys())
+            printer_display_names = sorted(self.printer_map.keys())
         except Exception as e:
             messagebox.showerror("Printer Load Error", f"Could not load printers from printserver:\n{e}")
             self.printer_map = {}

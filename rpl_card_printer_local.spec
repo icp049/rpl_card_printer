@@ -5,7 +5,7 @@ a = Analysis(
     ['rpl_card_printer_local.py'],
     pathex=[],
     binaries=[],
-    datas=[('printer.ico', '.'), ('snip1.PNG', '.'), ('snip2.PNG', '.'), ('refresh.png', '.')],
+    datas=[('printer.ico', '.'), ('snip1.PNG', '.'), ('snip2.PNG', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

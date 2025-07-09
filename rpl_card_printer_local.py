@@ -123,7 +123,9 @@ class BarcodePrinterApp:
             "card" in p["pPrinterName"].lower()
         )
             }
-            printer_display_names = list(self.printer_map.keys())
+            printer_display_names = sorted(self.printer_map.keys())
+            
+            
         except Exception as e:
             messagebox.showerror("Printer Load Error", f"Could not load local printers:\n{e}")
             self.printer_map = {}
@@ -315,9 +317,9 @@ class BarcodePrinterApp:
             card_height_px = int(3.375 * dpi)
             zone_height = card_height_px // 3
 
-            barcode_width = 650
-            barcode_height = 180
-            header_spacing = 15
+            barcode_width = 610
+            barcode_height = 150
+            header_spacing = 12
 
             left = (card_width_px - barcode_width) // 2
             right = left + barcode_width
@@ -336,7 +338,7 @@ class BarcodePrinterApp:
 
             for i in range(3):
                 zone_top = i * zone_height
-                top = zone_top + (zone_height - barcode_height - text_height - header_spacing) // 2 + text_height + header_spacing
+                top = zone_top + (zone_height - barcode_height - text_height - header_spacing) // 2 + text_height + header_spacing - 50 #adjusted top postion
                 bottom = top + barcode_height
 
                 hdc.TextOut((card_width_px - text_width) // 2, top - header_spacing - text_height, header_text)

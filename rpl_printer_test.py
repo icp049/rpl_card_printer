@@ -427,3 +427,5 @@ if __name__ == "__main__":
     root.mainloop()
 
 
+#Printer Icon Attribution:
+#https://www.flaticon.com/free-icons/printer
